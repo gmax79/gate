@@ -127,8 +127,7 @@ func newConnectedPlayer(
 
 	return &connectedPlayer{
 		minecraftConn: conn,
-		log: conn.log.WithName("player").WithValues(
-			"name", profile.Name, "id", profile.ID),
+		log: conn.log.WithName("player").WithValues("name", profile.Name),
 		profile:        profile,
 		virtualHost:    virtualHost,
 		onlineMode:     onlineMode,
