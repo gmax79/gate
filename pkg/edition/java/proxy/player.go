@@ -17,6 +17,7 @@ import (
 	"go.minekube.com/common/minecraft/component/codec/legacy"
 	"go.minekube.com/gate/pkg/edition/java/proxy/crypto"
 	"go.minekube.com/gate/pkg/edition/java/proxy/tablist"
+	"go.minekube.com/gate/pkg/gate/proto"
 	"go.uber.org/atomic"
 
 	"go.minekube.com/gate/pkg/command"
@@ -65,6 +66,8 @@ type Player interface {
 	// SendActionBar sends an action bar to the player.
 	SendActionBar(msg component.Component) error
 	TabList() tablist.TabList // Returns the player's tab list.
+	// Send custom packet for player
+	WritePacket(p proto.Packet) error
 	// Attach custom player data if needed
 	SetData(data any)
 	GetData() any
@@ -126,8 +129,8 @@ func newConnectedPlayer(
 	}
 
 	return &connectedPlayer{
-		minecraftConn: conn,
-		log: conn.log.WithName("player").WithValues("name", profile.Name),
+		minecraftConn:  conn,
+		log:            conn.log.WithName("player").WithValues("name", profile.Name),
 		profile:        profile,
 		virtualHost:    virtualHost,
 		onlineMode:     onlineMode,
