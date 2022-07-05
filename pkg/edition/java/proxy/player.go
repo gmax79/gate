@@ -65,6 +65,9 @@ type Player interface {
 	// SendActionBar sends an action bar to the player.
 	SendActionBar(msg component.Component) error
 	TabList() tablist.TabList // Returns the player's tab list.
+	// Attach custom player data if needed
+	SetData(data any)
+	GetData() any
 	// TODO add title and more
 }
 
@@ -99,6 +102,8 @@ type connectedPlayer struct {
 
 	serversToTry []string // names of servers to try if we got disconnected from previous
 	tryIndex     int
+
+	customData any // its custom data for player
 }
 
 var _ Player = (*connectedPlayer)(nil)
@@ -676,6 +681,14 @@ func (p *connectedPlayer) Settings() player.Settings {
 		return p.settings
 	}
 	return player.DefaultSettings
+}
+
+func (p *connectedPlayer) SetData(data any) {
+	p.customData = data
+}
+
+func (p *connectedPlayer) GetData() any {
+	return p.customData
 }
 
 func randomUint64() uint64 {
