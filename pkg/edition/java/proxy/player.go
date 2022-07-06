@@ -71,7 +71,11 @@ type Player interface {
 	// Attach custom player data if needed
 	SetData(data any)
 	GetData() any
-	// TODO add title and more
+	// SendTitle sends big message for player with fade effect
+	SendTitle(title, subtitle component.Component, fadeIn, fadeOut, stay int) error
+	// Hide title
+	HideTitle() error
+	// TODO add more
 }
 
 type connectedPlayer struct {
@@ -486,6 +490,62 @@ func (p *connectedPlayer) SendActionBar(msg component.Component) error {
 		Type:    packet.GameInfoMessageType,
 		Sender:  uuid.Nil,
 	})
+}
+
+func (p *connectedPlayer) HideTitle() error {
+	protocol := p.Protocol()
+	if protocol.GreaterEqual(version.Minecraft_1_11) {
+		pkt, err := title.New(protocol, &title.Builder{
+			Action: title.Hide,
+		})
+		if err != nil {
+			return err
+		}
+		return p.WritePacket(pkt)
+	}
+
+	return errors.New("title messages are only supported on 1.11+")
+}
+
+func (p *connectedPlayer) SendTitle(msg, subtitle component.Component, fadeIn, fadeOut, stay int) error {
+	protocol := p.Protocol()
+	if protocol.GreaterEqual(version.Minecraft_1_11) {
+		pkt1, err := title.New(protocol, &title.Builder{
+			Action:    title.SetTitle,
+			Component: msg,
+		})
+		if err != nil {
+			return err
+		}
+		pkt2, err := title.New(protocol, &title.Builder{
+			Action:    title.SetSubtitle,
+			Component: subtitle,
+		})
+		if err != nil {
+			return err
+		}
+		pkt3, err := title.New(protocol, &title.Builder{
+			Action:  title.SetTimes,
+			FadeIn:  fadeIn,
+			FadeOut: fadeOut,
+			Stay:    stay,
+		})
+		if err != nil {
+			return err
+		}
+
+		if err = p.WritePacket(pkt3); err != nil {
+			return err
+		}
+
+		if err = p.WritePacket(pkt2); err != nil {
+			return err
+		}
+
+		return p.WritePacket(pkt1)
+	}
+
+	return errors.New("title messages are only supported on 1.11+")
 }
 
 func (p *connectedPlayer) SendPluginMessage(identifier message.ChannelIdentifier, data []byte) error {
