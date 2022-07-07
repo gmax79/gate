@@ -414,14 +414,9 @@ func (b *ChatBuilder) ToClient() proto.Packet {
 	}
 
 	if b.protocol.GreaterEqual(version.Minecraft_1_19) {
-		// hard override chat > system for now
-		t := b.type_
-		if t == ChatMessageType {
-			t = SystemMessageType
-		}
 		return &SystemChat{
 			Component: msg,
-			Type:      int(t),
+			Type:      int(b.type_),
 		}
 	}
 
