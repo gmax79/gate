@@ -12,6 +12,7 @@ import (
 	"go.minekube.com/gate/pkg/edition/java/proto/packet"
 	util2 "go.minekube.com/gate/pkg/edition/java/proto/util"
 	"go.minekube.com/gate/pkg/edition/java/proxy/crypto"
+	"go.minekube.com/gate/pkg/edition/java/proxy/crypto/keyrevision"
 	"go.minekube.com/gate/pkg/gate/proto"
 	"go.minekube.com/gate/pkg/util/uuid"
 	"go.uber.org/multierr"
@@ -31,17 +32,14 @@ type TabList interface {
 type (
 	// tabList is the tab list of one player connection.
 	tabList struct {
-		keyStore PlayerKey
-		w        PacketWriter
-		p        proto.Protocol
+		keyProvider PlayerKeyProvider
+		w           proto.PacketWriter
+		protocol    proto.Protocol
 
 		mu      sync.RWMutex
 		entries map[uuid.UUID]*tabListEntry
 	}
-	PacketWriter interface {
-		WritePacket(proto.Packet) error
-	}
-	PlayerKey interface {
+	PlayerKeyProvider interface {
 		PlayerKey(playerID uuid.UUID) crypto.IdentifiedKey // May return nil if player not found
 	}
 )
@@ -49,16 +47,16 @@ type (
 var _ TabList = (*tabList)(nil)
 
 // New creates a new TabList for versions >= 1.8.
-func New(w PacketWriter, p proto.Protocol, keyStore PlayerKey) TabList {
-	return newTabList(w, p, keyStore)
+func New(w proto.PacketWriter, protocol proto.Protocol, keyProvider PlayerKeyProvider) TabList {
+	return newTabList(w, protocol, keyProvider)
 }
 
-func newTabList(w PacketWriter, p proto.Protocol, keyStore PlayerKey) *tabList {
+func newTabList(w proto.PacketWriter, protocol proto.Protocol, keyProvider PlayerKeyProvider) *tabList {
 	return &tabList{
-		keyStore: keyStore,
-		w:        w,
-		p:        p,
-		entries:  make(map[uuid.UUID]*tabListEntry),
+		keyProvider: keyProvider,
+		w:           w,
+		protocol:    protocol,
+		entries:     make(map[uuid.UUID]*tabListEntry),
 	}
 }
 
@@ -120,7 +118,7 @@ func (t *tabList) removeEntry(id uuid.UUID) (*tabListEntry, error) {
 func (t *tabList) SetHeaderFooter(header, footer component.Component) error {
 	b := new(bytes.Buffer)
 	p := new(packet.HeaderAndFooter)
-	j := util2.JsonCodec(t.p)
+	j := util2.JsonCodec(t.protocol)
 
 	if err := j.Marshal(b, header); err != nil {
 		return fmt.Errorf("error marshal header: %w", err)
@@ -198,7 +196,7 @@ func (t *tabList) ProcessBackendPacket(p *packet.PlayerListItem) error {
 
 			// Verify key
 			providedKey := item.PlayerKey
-			if expectedKey := t.keyStore.PlayerKey(item.ID); expectedKey != nil {
+			if expectedKey := t.keyProvider.PlayerKey(item.ID); expectedKey != nil {
 				if providedKey == nil {
 					// Substitute the key
 					// It shouldn't be propagated to remove the signature.
@@ -254,9 +252,20 @@ func (t *tabList) updateEntry(action packet.PlayerListItemAction, entry *tabList
 		return nil
 	}
 	packetItem := newPlayerListItemEntry(entry)
-	if existing := t.keyStore.PlayerKey(entry.Profile().ID); existing != nil {
-		packetItem.PlayerKey = existing
+
+	selectedKey := packetItem.PlayerKey
+	if existing := t.keyProvider.PlayerKey(entry.Profile().ID); existing != nil {
+		selectedKey = existing
 	}
+
+	if selectedKey != nil &&
+		selectedKey.SignatureHolder() == entry.Profile().ID &&
+		keyrevision.Applicable(selectedKey.KeyRevision(), t.protocol) {
+		packetItem.PlayerKey = selectedKey
+	} else {
+		packetItem.PlayerKey = nil
+	}
+
 	return t.w.WritePacket(&packet.PlayerListItem{
 		Action: action,
 		Items:  []packet.PlayerListItemEntry{*packetItem},
