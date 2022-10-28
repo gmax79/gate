@@ -68,8 +68,6 @@ type Player interface {
 	// SendActionBar sends an action bar to the player.
 	SendActionBar(msg component.Component) error
 	TabList() tablist.TabList // Returns the player's tab list.
-	// Send custom packet for player
-	WritePacket(p proto.Packet) error
 	// Attach custom player data if needed
 	SetData(data any)
 	GetData() any
