@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	"github.com/pires/go-proxyproto"
 	"go.minekube.com/common/minecraft/component"
 	"go.minekube.com/common/minecraft/component/codec/legacy"
 	"go.minekube.com/gate/pkg/command"
@@ -146,13 +147,18 @@ func (p *Proxy) Start(ctx context.Context) error {
 	p.closeListener = stopListener
 	p.closeMu.Unlock()
 
-	if err := p.preInit(); err != nil {
+	if err := p.preInit(ctx); err != nil {
 		return fmt.Errorf("pre-initialization error: %w", err)
 	}
-	defer p.Shutdown(p.shutdownReason) // disconnects players
+
 	if p.cfg.Debug {
 		p.log.Info("running in debug mode")
 	}
+	if p.cfg.ProxyProtocol {
+		p.log.Info("proxy protocol enabled")
+	}
+
+	defer p.Shutdown(p.shutdownReason) // disconnects players
 	return p.listenAndServe(p.cfg.Bind, stopListener)
 }
 
@@ -206,7 +212,7 @@ func (p *Proxy) Shutdown(reason component.Component) {
 }
 
 // called before starting to actually run the proxy
-func (p *Proxy) preInit() (err error) {
+func (p *Proxy) preInit(ctx context.Context) (err error) {
 	// Load shutdown reason
 	if err = p.loadShutdownReason(); err != nil {
 		return fmt.Errorf("error loading shutdown reason: %w", err)
@@ -223,7 +229,7 @@ func (p *Proxy) preInit() (err error) {
 	c := p.cfg
 	// Register servers
 	if len(c.Servers) != 0 {
-		p.log.Info("Registering servers...", "count", len(c.Servers))
+		p.log.Info("registering servers...", "count", len(c.Servers))
 	}
 	for name, addr := range c.Servers {
 		pAddr, err := netutil.Parse(addr, "tcp")
@@ -233,7 +239,7 @@ func (p *Proxy) preInit() (err error) {
 		info := NewServerInfo(name, pAddr)
 		_, err = p.Register(info)
 		if err != nil {
-			p.log.Info("Could not register server", "server", info)
+			p.log.Error(err, "could not register server", "server", info)
 		}
 	}
 
@@ -243,7 +249,7 @@ func (p *Proxy) preInit() (err error) {
 	}
 
 	// Init "plugins" with the proxy
-	return p.initPlugins()
+	return p.initPlugins(ctx)
 }
 
 // loads shutdown kick reason on proxy shutdown from the cfg
@@ -301,9 +307,9 @@ func (p *Proxy) loadFavicon() (err error) {
 	return nil
 }
 
-func (p *Proxy) initPlugins() error {
+func (p *Proxy) initPlugins(ctx context.Context) error {
 	for _, pl := range Plugins {
-		if err := pl.Init(p); err != nil {
+		if err := pl.Init(ctx, p); err != nil {
 			return fmt.Errorf("error running init hook for plugin %q: %w", pl.Name, err)
 		}
 	}
@@ -403,7 +409,7 @@ func (p *Proxy) Register(info ServerInfo) (RegisteredServer, error) {
 	rs := newRegisteredServer(info)
 	p.servers[name] = rs
 
-	p.log.Info("Registered new server", "name", info.Name(), "addr", info.Addr())
+	p.log.Info("registered new server", "name", info.Name(), "addr", info.Addr())
 	return rs, nil
 }
 
@@ -422,7 +428,7 @@ func (p *Proxy) Unregister(info ServerInfo) bool {
 	}
 	delete(p.servers, name)
 
-	p.log.Info("Unregistered backend server",
+	p.log.Info("unregistered backend server",
 		"name", info.Name(), "addr", info.Addr())
 	return true
 }
@@ -462,8 +468,8 @@ func (p *Proxy) listenAndServe(addr string, stop <-chan struct{}) error {
 
 	p.event.Fire(&ReadyEvent{})
 
-	defer p.log.Info("Stopped listening for new connections")
-	p.log.Info("Listening for connections", "addr", addr)
+	defer p.log.Info("stopped listening for new connections")
+	p.log.Info("listening for connections", "addr", addr)
 
 	for {
 		conn, err := ln.Accept()
@@ -475,6 +481,11 @@ func (p *Proxy) listenAndServe(addr string, stop <-chan struct{}) error {
 			}
 			return fmt.Errorf("error accepting new connection: %w", err)
 		}
+
+		if p.cfg.ProxyProtocol {
+			conn = proxyproto.NewConn(conn)
+		}
+
 		go p.HandleConn(conn)
 	}
 }

@@ -5,7 +5,9 @@ import (
 	"sync"
 
 	"go.minekube.com/common/minecraft/component"
+	"go.minekube.com/gate/pkg/edition/java/internal/protoutil"
 	"go.minekube.com/gate/pkg/edition/java/proto/packet/bossbar"
+	"go.minekube.com/gate/pkg/edition/java/proto/version"
 	"go.minekube.com/gate/pkg/gate/proto"
 	"go.minekube.com/gate/pkg/util/uuid"
 )
@@ -244,4 +246,15 @@ func toSlice(m map[uuid.UUID]*barViewer) []Viewer {
 		viewers = append(viewers, viewer.Viewer)
 	}
 	return viewers
+}
+
+// isProtocolSupported returns true the viewer's protocol supports boss bar.
+func isProtocolSupported(viewer Viewer) bool {
+	// below 1.9 doesn't support boss bars
+	p, ok := protoutil.Protocol(viewer)
+	if !ok {
+		// assume supported
+		return true
+	}
+	return p.GreaterEqual(version.Minecraft_1_9)
 }

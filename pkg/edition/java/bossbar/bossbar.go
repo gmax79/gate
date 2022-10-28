@@ -3,7 +3,6 @@ package bossbar
 import (
 	"go.minekube.com/common/minecraft/component"
 	packet "go.minekube.com/gate/pkg/edition/java/proto/packet/bossbar"
-	"go.minekube.com/gate/pkg/edition/java/proto/version"
 	"go.minekube.com/gate/pkg/gate/proto"
 	"go.minekube.com/gate/pkg/util/uuid"
 )
@@ -47,9 +46,6 @@ type BossBar interface {
 
 // New creates a new boss bar.
 // It is safe for concurrent use.
-//
-// Don't forget to register/unregister the boss bar with the
-// proxy boss bar manager if necessary.
 func New(
 	name component.Component,
 	percent float32,
@@ -78,7 +74,7 @@ func RemoveAllViewers(b BossBar) {
 	}
 }
 
-// Viewer is the interface for a boss bar viewer (likely a player).
+// Viewer is the interface for a boss bar viewer (e.g. a player).
 type Viewer interface {
 	ID() uuid.UUID
 	proto.PacketWriter
@@ -137,11 +133,3 @@ const (
 	PlayBossMusicFlag  = Flag(packet.PlayBossMusicFlag)
 	CreateWorldFogFlag = Flag(packet.CreateWorldFogFlag)
 )
-
-func isProtocolSupported(viewer Viewer) bool {
-	if p, ok := viewer.(interface{ Protocol() proto.Protocol }); ok {
-		// below 1.9 doesn't support boss bars
-		return p.Protocol().GreaterEqual(version.Minecraft_1_9)
-	}
-	return true // assume supported
-}

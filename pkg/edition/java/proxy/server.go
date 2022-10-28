@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/dboslee/lru"
 	"github.com/go-logr/logr"
 	"go.minekube.com/gate/pkg/edition/java/netmc"
 	"go.minekube.com/gate/pkg/edition/java/proxy/phase"
@@ -208,10 +209,10 @@ type serverConnection struct {
 	player *connectedPlayer
 	log    logr.Logger
 
-	completedJoin           atomic.Bool
-	gracefulDisconnect      atomic.Bool
-	lastPingID              atomic.Int64
-	lastPingSent            atomic.Int64              // unix millis
+	completedJoin      atomic.Bool
+	gracefulDisconnect atomic.Bool
+	pendingPings       *lru.SyncCache[int64, time.Time]
+
 	activeDimensionRegistry *packet.DimensionRegistry // updated by packet.JoinGame
 
 	mu         sync.RWMutex        // Protects following fields
@@ -221,8 +222,9 @@ type serverConnection struct {
 
 func newServerConnection(server *registeredServer, player *connectedPlayer) *serverConnection {
 	return &serverConnection{
-		server: server,
-		player: player,
+		server:       server,
+		player:       player,
+		pendingPings: lru.NewSync[int64, time.Time](lru.WithCapacity(5)),
 		log: player.log.WithName("serverConn").WithValues(
 			"serverName", server.info.Name(),
 			"serverAddr", server.info.Addr()),
@@ -306,8 +308,14 @@ func (s *serverConnection) dial(ctx context.Context) (net.Conn, error) {
 	)
 	if sd, ok = s.Server().ServerInfo().(ServerDialer); !ok {
 		if sd, ok = s.Server().(ServerDialer); !ok {
+			dstAddr := s.Server().ServerInfo().Addr()
 			var d net.Dialer
-			return d.DialContext(ctx, "tcp", s.Server().ServerInfo().Addr().String())
+			conn, err := d.DialContext(ctx, "tcp", dstAddr.String())
+			if err != nil {
+				return nil, err
+			}
+
+			return conn, nil
 		}
 	}
 	return sd.Dial(ctx, s.player)
