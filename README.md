@@ -1,4 +1,4 @@
-![Logo](https://raw.githubusercontent.com/minekube/gate/addbe2cd32def3619223f46eb30e6ed53613a899/site/static/images/cover3.png)
+[![Logo](.web/docs/public/og-image.png)](https://gate.minekube.com)
 
 # The extensible Minecraft Proxy
 
@@ -6,7 +6,7 @@
 [![Doc](https://img.shields.io/badge/go.dev-reference-007d9c?logo=go)](https://pkg.go.dev/go.minekube.com/gate)
 [![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/minekube/gate?logo=go)](https://golang.org/doc/devel/release.html)
 [![Go Report Card](https://goreportcard.com/badge/go.minekube.com/gate)](https://goreportcard.com/report/go.minekube.com/gate)
-[![test](https://github.com/minekube/gate/workflows/test/badge.svg)](https://github.com/minekube/gate/actions?query=workflow%3Atest)
+[![test](https://github.com/minekube/gate/workflows/ci/badge.svg)](https://github.com/minekube/gate/actions)
 [![Discord](https://img.shields.io/discord/633708750032863232?logo=discord)](https://discord.gg/6vMDqWE)
 
 **Gate is an extensible, high performant & paralleled
@@ -16,17 +16,16 @@ _written in Go and ready for the cloud!_
 
 > Gate is currently subject to have breaking changes,
 > but you can already start using it!
-> It is already being used by the Minekube network!
+> It is already being used by the [community](https://minekube.com/discord) and powers the open [Connect Network](https://connect.minekube.com/)!
 
-## [Website & Documentation](https://developers.minekube.com/gate)
+## [Website & Documentation](https://gate.minekube.com)
 
 **There is a lot to discover on Gate's website.**
-Please refer to the website for the [documentation](https://developers.minekube.com/gate),
+Please refer to the website for the [documentation](https://gate.minekube.com),
 guides and any more information needed!
 
 ## Quick Start
 
-Follow our quick guide on [creating a simple Minecraft network](https://developers.minekube.com/gate)
-on our documentation website.
+Follow our [quick start guide](https://gate.minekube.com/guide/quick-start/) on creating a simple Minecraft network!
 
-![Server list](https://raw.githubusercontent.com/minekube/gate/addbe2cd32def3619223f46eb30e6ed53613a899/site/static/images/server-list.png)
+[![Server list](.web/docs/images/server-list.png)](https://gate.minekube.com)
