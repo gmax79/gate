@@ -4,18 +4,20 @@ package gate
 import (
 	"context"
 	"fmt"
+	"reflect"
 
 	"github.com/go-logr/logr"
 	"github.com/spf13/viper"
+	jconfig "go.minekube.com/gate/pkg/edition/java/config"
 	"go.minekube.com/gate/pkg/util/interrupt"
 	"go.uber.org/multierr"
 
+	"github.com/robinbraemer/event"
 	"go.minekube.com/gate/pkg/bridge"
 	"go.minekube.com/gate/pkg/edition"
 	bproxy "go.minekube.com/gate/pkg/edition/bedrock/proxy"
 	jproxy "go.minekube.com/gate/pkg/edition/java/proxy"
 	"go.minekube.com/gate/pkg/gate/config"
-	"go.minekube.com/gate/pkg/runtime/event"
 	"go.minekube.com/gate/pkg/runtime/process"
 	connectcfg "go.minekube.com/gate/pkg/util/connectutil/config"
 	errors "go.minekube.com/gate/pkg/util/errs"
@@ -150,6 +152,10 @@ func LoadConfig(v *viper.Viper) (*config.Config, error) {
 	if err := v.Unmarshal(&cfg); err != nil {
 		return nil, fmt.Errorf("error loading config: %w", err)
 	}
+	// Override Java config by shorter alias
+	if !reflect.DeepEqual(cfg.Config, jconfig.Config{}) {
+		cfg.Editions.Java.Config = cfg.Config
+	}
 	return &cfg, nil
 }
 
@@ -214,7 +220,7 @@ func Start(ctx context.Context, opts ...StartOption) error {
 	// Setup new Gate instance with loaded config.
 	gate, err := New(Options{
 		Config:   c.conf,
-		EventMgr: event.New(log.WithName("event")),
+		EventMgr: event.New(event.WithLogger(log.WithName("event"))),
 	})
 	if err != nil {
 		return fmt.Errorf("error creating Gate instance: %w", err)

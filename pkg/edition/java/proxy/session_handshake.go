@@ -6,26 +6,25 @@ import (
 	"strings"
 
 	"github.com/go-logr/logr"
+	"github.com/robinbraemer/event"
 	"go.minekube.com/common/minecraft/color"
 	"go.minekube.com/common/minecraft/component"
 	"go.minekube.com/gate/pkg/edition/java/auth"
 	"go.minekube.com/gate/pkg/edition/java/config"
 	"go.minekube.com/gate/pkg/edition/java/forge"
-	netmc "go.minekube.com/gate/pkg/edition/java/netmc"
+	"go.minekube.com/gate/pkg/edition/java/netmc"
 	"go.minekube.com/gate/pkg/edition/java/proto/packet"
 	"go.minekube.com/gate/pkg/edition/java/proto/state"
 	"go.minekube.com/gate/pkg/edition/java/proto/version"
 	"go.minekube.com/gate/pkg/edition/java/proxy/phase"
 	"go.minekube.com/gate/pkg/gate/proto"
 	"go.minekube.com/gate/pkg/internal/addrquota"
-	"go.minekube.com/gate/pkg/runtime/event"
 	"go.minekube.com/gate/pkg/util/netutil"
 )
 
 type sessionHandlerDeps struct {
 	proxy          *Proxy
 	registrar      playerRegistrar
-	players        playerProvider
 	eventMgr       event.Manager
 	configProvider configProvider
 	authenticator  auth.Authenticator
@@ -61,7 +60,7 @@ func newHandshakeSessionHandler(
 }
 
 func (h *handshakeSessionHandler) HandlePacket(p *proto.PacketContext) {
-	if !p.KnownPacket {
+	if !p.KnownPacket() {
 		// Unknown packet received.
 		// Better to close the connection.
 		_ = h.conn.Close()
@@ -127,7 +126,7 @@ func (h *handshakeSessionHandler) handleLogin(p *packet.Handshake, inbound *init
 		return
 	}
 
-	h.conn.SetType(connTypeForHandshake(p))
+	h.conn.SetType(handshakeConnectionType(p))
 
 	// If the proxy is configured for velocity's forwarding mode, we must deny connections from 1.12.2
 	// and lower, otherwise IP information will never get forwarded.
@@ -154,7 +153,7 @@ func stateForProtocol(status int) *state.Registry {
 	return nil
 }
 
-func connTypeForHandshake(h *packet.Handshake) phase.ConnectionType {
+func handshakeConnectionType(h *packet.Handshake) phase.ConnectionType {
 	// Determine if we're using Forge (1.8 to 1.12, may not be the case in 1.13).
 	if h.ProtocolVersion < int(version.Minecraft_1_13.Protocol) &&
 		strings.HasSuffix(h.ServerAddress, forge.HandshakeHostnameToken) {
