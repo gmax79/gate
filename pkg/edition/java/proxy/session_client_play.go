@@ -53,10 +53,11 @@ func newClientPlaySessionHandler(player *connectedPlayer) *clientPlaySessionHand
 		log1:           log.V(1),
 		serverBossBars: map[uuid.UUID]struct{}{},
 		chatHandler: &chatHandler{
-			log:      log,
-			eventMgr: player.eventMgr,
-			player:   player,
-			cmdMgr:   player.proxy.Command(),
+			log:            log,
+			eventMgr:       player.eventMgr,
+			player:         player,
+			cmdMgr:         player.proxy.Command(),
+			configProvider: player.proxy,
 		},
 	}
 }
@@ -340,7 +341,6 @@ func (c *clientPlaySessionHandler) handleBackendJoinGame(pc *proto.PacketContext
 			return err
 		}
 	}
-	destination.activeDimensionRegistry = joinGame.DimensionRegistry // 1.16
 
 	// Remove previous boss bars. These don't get cleared when sending JoinGame, thus the need to
 	// track them.
