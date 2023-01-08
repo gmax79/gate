@@ -23,6 +23,7 @@ import (
 	"go.minekube.com/gate/pkg/edition/java/proxy/message"
 	"go.minekube.com/gate/pkg/gate/proto"
 	"go.minekube.com/gate/pkg/internal/addrquota"
+	"go.minekube.com/gate/pkg/internal/connwrap"
 	"go.minekube.com/gate/pkg/util/errs"
 	"go.minekube.com/gate/pkg/util/favicon"
 	"go.minekube.com/gate/pkg/util/netutil"
@@ -184,10 +185,10 @@ func (p *Proxy) Shutdown(reason component.Component) {
 		close(p.closeListener)
 	}
 
-	p.log.Info("Shutting down the proxy...")
+	p.log.Info("shutting down the proxy...")
 	shutdownTime := time.Now()
 	defer func() {
-		p.log.Info("Finished shutdown.",
+		p.log.Info("finished shutdown.",
 			"shutdownTime", time.Since(shutdownTime).Round(time.Microsecond).String(),
 			"totalTime", time.Since(p.startTime.Load().(time.Time)).Round(time.Millisecond).String())
 	}()
@@ -200,16 +201,16 @@ func (p *Proxy) Shutdown(reason component.Component) {
 	if reason != nil {
 		err := (&legacy.Legacy{}).Marshal(reasonStr, reason)
 		if err != nil {
-			p.log.Error(err, "Error marshal disconnect reason to legacy format")
+			p.log.Error(err, "error marshal disconnect reason to legacy format")
 		}
 	}
 
-	p.log.Info("Disconnecting all players...", "reason", reasonStr.String())
+	p.log.Info("disconnecting all players...", "reason", reasonStr.String())
 	disconnectTime := time.Now()
 	p.DisconnectAll(reason)
-	p.log.Info("Disconnected all players.", "time", time.Since(disconnectTime).String())
+	p.log.Info("disconnected all players.", "time", time.Since(disconnectTime).String())
 
-	p.log.Info("Waiting for all event handlers to complete...")
+	p.log.Info("waiting for all event handlers to complete...")
 	p.event.Fire(&ShutdownEvent{})
 	p.event.Wait()
 }
@@ -220,17 +221,17 @@ func (p *Proxy) preInit(ctx context.Context) (err error) {
 	if err = p.loadShutdownReason(); err != nil {
 		return fmt.Errorf("error loading shutdown reason: %w", err)
 	}
-	// Load status motd
-	if err = p.loadMotd(); err != nil {
-		return fmt.Errorf("error loading status motd: %w", err)
-	}
-	// Load favicon
-	if err = p.loadFavicon(); err != nil {
-		return fmt.Errorf("error loading favicon: %w", err)
-	}
 
 	c := p.cfg
 	if !c.Lite.Enabled {
+		// Load status motd
+		if err = p.loadMotd(); err != nil {
+			return fmt.Errorf("error loading status motd: %w", err)
+		}
+		// Load favicon
+		if err = p.loadFavicon(); err != nil {
+			return fmt.Errorf("error loading favicon: %w", err)
+		}
 
 		// Register servers
 		if len(c.Servers) != 0 {
@@ -500,9 +501,25 @@ func (p *Proxy) listenAndServe(addr string, stop <-chan struct{}) error {
 // that has not had any I/O performed on it yet.
 func (p *Proxy) HandleConn(raw net.Conn) {
 	if p.connectionsQuota != nil && p.connectionsQuota.Blocked(netutil.Host(raw.RemoteAddr())) {
-		p.log.Info("Connection exceeded rate limit, closed", "remoteAddr", raw.RemoteAddr())
+		p.log.Info("connection exceeded rate limit, closed", "remoteAddr", raw.RemoteAddr())
 		_ = raw.Close()
 		return
+	}
+
+	// Fire connection event
+	if p.event.HasSubscriber((*ConnectionEvent)(nil)) {
+		conn := &connwrap.Conn{Conn: raw}
+		e := &ConnectionEvent{
+			conn:     conn,
+			original: conn,
+		}
+		p.event.Fire(e)
+		if conn.Closed() || e.Connection() == nil {
+			_ = conn.Close()
+			p.log.V(1).Info("connection closed by ConnectionEvent subscriber", "remoteAddr", raw.RemoteAddr())
+			return
+		}
+		raw = e.Connection()
 	}
 
 	// Create context for connection

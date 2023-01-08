@@ -55,10 +55,10 @@ func (r *reader) ReadPacket() (*proto.PacketContext, error) {
 	packetCtx, err := r.Decode()
 	if err != nil && !errors.Is(err, proto.ErrDecoderLeftBytes) { // Ignore this error.
 		if r.handleReadErr(err) {
-			r.log.V(1).Info("error reading packet, recovered", "err", err)
+			r.log.V(1).Info("error reading packet, recovered", "error", err)
 			return nil, ErrReadPacketRetry
 		}
-		r.log.V(1).Info("error reading packet, closing connection", "err", err)
+		r.log.V(1).Info("error reading packet, closing connection", "error", err)
 		return nil, err
 	}
 	return packetCtx, nil
@@ -68,7 +68,6 @@ func (r *reader) ReadPacket() (*proto.PacketContext, error) {
 func (r *reader) handleReadErr(err error) (recoverable bool) {
 	var silentErr *errs.SilentError
 	if errors.As(err, &silentErr) {
-		r.log.V(1).Info("silentErr: error reading next packet, unrecoverable and closing connection", "err", err)
 		return false
 	}
 	// Immediately retry for EAGAIN
