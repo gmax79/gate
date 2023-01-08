@@ -158,7 +158,7 @@ func (p *connectedPlayer) handleConnectionErr(server RegisteredServer, err error
 	log := p.log.WithValues(
 		"serverName", server.ServerInfo().Name(),
 		"serverAddr", server.ServerInfo().Addr())
-	log.V(1).Info("could not connect player to server", "err", err)
+	log.V(1).Info("could not connect player to server", "error", err)
 
 	if !p.Active() {
 		// If the connection is no longer active, we don't have to try recover it.
@@ -219,6 +219,11 @@ func (p *connectedPlayer) handleConnectionErr2(
 
 func (p *connectedPlayer) handleKickEvent(e *KickedFromServerEvent, friendlyReason Component, kickedFromCurrent bool) {
 	p.proxy.Event().Fire(e)
+
+	// If player was connected to another server by event handler, we don't need to do anything else.
+	if cs := p.CurrentServer(); cs != nil && !RegisteredServerEqual(e.Server(), cs.Server()) {
+		return
+	}
 
 	// There can't be any connection in flight now.
 	p.setInFlightConnection(nil)
@@ -301,7 +306,7 @@ func (p *connectedPlayer) handleDisconnectWithReason(server RegisteredServer, re
 	log := p.log.WithValues("server", server.ServerInfo().Name())
 
 	if plainReason, err := util2.MarshalPlain(reason); err != nil {
-		p.log.V(1).Info("error marshal disconnect reason to plain", "err", err)
+		p.log.V(1).Info("error marshal disconnect reason to plain", "error", err)
 	} else {
 		log = log.WithValues("reason", plainReason)
 	}

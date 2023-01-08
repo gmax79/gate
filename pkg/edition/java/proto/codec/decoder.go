@@ -101,13 +101,14 @@ func (d *Decoder) readPacket() (ctx *proto.PacketContext, err error) {
 		}()
 	}
 
+retry:
 	payload, err := d.readPayload()
 	if err != nil {
-		return nil, err
+		return nil, &errs.SilentError{Err: err}
 	}
 	if len(payload) == 0 {
 		// Got an empty packet, skipping it
-		return d.readPacket()
+		goto retry
 	}
 	return d.decodePayload(payload)
 }
@@ -230,7 +231,7 @@ func (d *Decoder) decodePayload(p []byte) (ctx *proto.PacketContext, err error) 
 	// Payload buffer should now be empty.
 	if payload.Len() != 0 {
 		// packet decoder did not read all the packet's data!
-		d.log.Info("Packet's decoder did not read all of packet's data",
+		d.log.Info("packet decoder did not read all of packet's data",
 			"ctx", ctx,
 			"decodedBytes", len(ctx.Payload),
 			"unreadBytes", payload.Len())
