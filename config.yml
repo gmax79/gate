@@ -71,6 +71,12 @@ config:
   readTimeout: 30000
   # Whether to reconnect the player when disconnected from a server.
   failoverOnUnexpectedServerDisconnect: true
+  # Whether to kick existing connected player when an online-mode player with the same name joins.
+  # This is useful for scenarios where the real Minecraft account takes precedence over the cracked one.
+  # Note that enabling this would allow real Minecraft account players to bully cracked players by
+  # taking the cracked player's name and block them from joining the server, while the online player is connected.
+  # Default: false
+  onlineModeKickExistingPlayers: false
   # Enabled extra debug logging (only for debugging purposes).
   debug: false
   # This allows you to customize how player information such as IPs and UUIDs are forwarded to your server.
@@ -106,7 +112,7 @@ config:
     port: 25577
     showPlugins: false
   # Lite mode is a lightweight reverse proxy mode that acts as thin layer between the client and the backend server.
-  # See https://connect.minekube.com/guide/lite
+  # See https://gate.minekube.com/guide/lite
   #
   # It efficiently routes client connections based on the virtual host address received in the handshake packet.
   # This allows to protect multiple backend servers behind a single port Gate Lite proxy instance.
@@ -115,7 +121,7 @@ config:
   # and have no effect in Lite mode when extensions use higher level Gate APIs and events.
   lite:
     # Enable Lite mode.
-    # If disabled, the proxy will act as a full proxy with all features enabled like just like BungeeCord/Velocity.
+    # If disabled, the proxy will act as a full proxy with all features enabled just like BungeeCord/Velocity.
     # If enabled, the proxy will act as a lightweight reverse proxy to support new types of deployment architecture.
     # Default: false
     enabled: false
@@ -133,9 +139,9 @@ config:
         proxyProtocol: true # Use proxy protocol to connect to backend.
         realIP: true # Optionally you can also use TCPShield's RealIP protocol.
       # You can also match to multiple hosts to one or multiple random backends.
-      - host: [ 127.0.0.1, localhost]
+      - host: [ 127.0.0.1, localhost ]
         backend: [ 172.16.0.12:25566, backend.example.com:25566 ]
-        # Ping responses are cached 3 seconds per backend address by default.
+        # Ping responses are cached address by default.
         # To disable motd caching set it to -1.
         # Default: 10s
         cachePingTTL: 60s
@@ -148,7 +154,7 @@ config:
 # Among a lot of other features it even allows players to join locally hosted
 # Minecraft servers without having an open port or public IP address.
 #
-# Visit https://developers.minekube.com/connect
+# Visit https://connect.minekube.com/
 connect:
   # Enabling Connect makes Gate register itself to Connect network.
   # This feature is disabled by default, but you are encouraged to
