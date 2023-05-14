@@ -303,13 +303,13 @@ func (p *Proxy) loadFavicon() (err error) {
 	}
 	if strings.HasPrefix(c.Status.Favicon, "data:image/") {
 		p.favicon = favicon.Favicon(c.Status.Favicon)
-		p.log.Info("Using favicon from data uri", "length", len(p.favicon))
+		p.log.Info("using favicon from data uri", "length", len(p.favicon))
 	} else {
 		p.favicon, err = favicon.FromFile(c.Status.Favicon)
 		if err != nil {
 			return fmt.Errorf("error reading favicon file %q: %w", c.Status.Favicon, err)
 		}
-		p.log.Info("Using favicon file", "file", c.Status.Favicon)
+		p.log.Info("using favicon file", "file", c.Status.Favicon)
 	}
 	return nil
 }
